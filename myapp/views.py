@@ -20,6 +20,10 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django_filters import rest_framework as filters
 from django.db.models import Q
+from django.db.models import Count, Sum
+from rest_framework.decorators import api_view
+from .dashboards.views import get_painel_recusas_data, get_painel_saldos_data
+from .exports import export_to_excel, export_matriz_diaria
 
 # View para upload da base completa
 def upload_base_completa(request):
@@ -309,3 +313,33 @@ class ContratoAdeDetailView(APIView):
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         return Response({"message": "Contratos atualizados com sucesso."}, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+def export_contratos_excel(request):
+    """
+    Endpoint para exportar todos os contratos para Excel
+    """
+    queryset = Contrato.objects.all()
+    return export_to_excel(queryset)
+
+@api_view(['GET'])
+def export_matriz_diaria(request):
+    """
+    Endpoint para exportar a matriz diária
+    """
+    return export_matriz_diaria()
+
+def painel_recusas(request):
+    """
+    View para renderizar o painel de recusas
+    """
+    data = get_painel_recusas_data()
+    return render(request, 'dashboards/recusas.html', data)
+
+def painel_saldos(request):
+    """
+    View para renderizar o painel de saldos
+    """
+    data = get_painel_saldos_data()
+    return render(request, 'dashboards/saldos.html', data)
+

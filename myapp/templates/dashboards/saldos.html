@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+
+{% block title %}Painel de Saldos{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Painel de Saldos</h1>
+    
+    <!-- Cards com totais -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Total de Saldos</h5>
+                    <h2 class="card-text">R$ {{ total_saldos.total|floatformat:2 }}</h2>
+                    <p>Quantidade: {{ total_saldos.quantidade }} contratos</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico de saldos -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Saldos nos Últimos 30 Dias</h5>
+                    <canvas id="graficoSaldos"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabelas -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Saldos por Status</h5>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Total</th>
+                                <th>Quantidade</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for saldo in saldos_por_status %}
+                            <tr>
+                                <td>{{ saldo.status }}</td>
+                                <td>R$ {{ saldo.total|floatformat:2 }}</td>
+                                <td>{{ saldo.quantidade }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Saldos por Corretor</h5>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Corretor</th>
+                                <th>Total</th>
+                                <th>Quantidade</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for saldo in saldos_por_corretor %}
+                            <tr>
+                                <td>{{ saldo.corretor }}</td>
+                                <td>R$ {{ saldo.total|floatformat:2 }}</td>
+                                <td>{{ saldo.quantidade }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript para o gráfico -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('graficoSaldos').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ grafico_saldos|safe }}.map(item => item.data_inclusao__date),
+            datasets: [{
+                label: 'Saldos por Dia',
+                data: {{ grafico_saldos|safe }}.map(item => item.total),
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'R$ ' + value.toLocaleString('pt-BR');
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %} 

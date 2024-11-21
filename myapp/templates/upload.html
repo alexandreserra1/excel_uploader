@@ -1,24 +1,43 @@
 <!-- myapp/templates/upload.html -->
 
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <title>Upload de Arquivos</title>
-</head>
-<body>
-    <h1>Upload da Base Completa</h1>
-    <form method="post" enctype="multipart/form-data" action="{% url 'upload-base-completa' %}">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Enviar Base Completa</button>
-    </form>
+{% extends 'base.html' %}
 
-    <h1>Upload para Atualização por ADE</h1>
-    <form method="post" enctype="multipart/form-data" action="{% url 'upload-atualizacao-ade' %}">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Enviar Atualização</button>
-    </form>
-</body>
-</html>
+{% block title %}Upload de Arquivos{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3>Upload da Base Completa</h3>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" action="{% url 'upload-base-completa' %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        {{ form.file }}
+                    </div>
+                    <button type="submit" class="btn btn-primary">Enviar Base Completa</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3>Upload para Atualização por ADE</h3>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" action="{% url 'upload-atualizacao-ade' %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        {{ form.file }}
+                    </div>
+                    <button type="submit" class="btn btn-primary">Enviar Atualização</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

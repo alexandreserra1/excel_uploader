@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}Painel de Recusas{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Painel de Recusas</h1>
+    
+    <!-- Cards com totais -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Total de Recusas</h5>
+                    <h2 class="card-text">{{ total_recusas }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Recusas Hoje</h5>
+                    <h2 class="card-text">{{ recusas_hoje }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico de recusas -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Recusas nos Últimos 30 Dias</h5>
+                    <canvas id="graficoRecusas"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabelas -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Recusas por Status do Contrato</h5>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Status do Contrato</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for recusa in recusas_por_status %}
+                            <tr>
+                                <td>{{ recusa.status_do_contrato }}</td>
+                                <td>{{ recusa.total }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Recusas por Corretor</h5>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Corretor</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for recusa in recusas_por_corretor %}
+                            <tr>
+                                <td>{{ recusa.corretor }}</td>
+                                <td>{{ recusa.total }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript para o gráfico -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('graficoRecusas').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ grafico_recusas|safe }}.map(item => item.data_inclusao__date),
+            datasets: [{
+                label: 'Recusas por Dia',
+                data: {{ grafico_recusas|safe }}.map(item => item.total),
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %} 
