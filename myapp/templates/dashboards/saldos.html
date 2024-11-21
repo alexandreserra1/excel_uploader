@@ -1,120 +1,74 @@
 {% extends 'base.html' %}
-
-{% block title %}Painel de Saldos{% endblock %}
+{% load custom_filters %}
 
 {% block content %}
-<div class="container mt-4">
-    <h1>Painel de Saldos</h1>
+<div class="container-fluid mt-4">
+    <h2>Painel de Saldos</h2>
     
-    <!-- Cards com totais -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Total de Saldos</h5>
-                    <h2 class="card-text">R$ {{ total_saldos.total|floatformat:2 }}</h2>
-                    <p>Quantidade: {{ total_saldos.quantidade }} contratos</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Gráfico de saldos -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Saldos nos Últimos 30 Dias</h5>
-                    <canvas id="graficoSaldos"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tabelas -->
-    <div class="row">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Saldos por Status</h5>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Status</th>
-                                <th>Total</th>
-                                <th>Quantidade</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for saldo in saldos_por_status %}
-                            <tr>
-                                <td>{{ saldo.status }}</td>
-                                <td>R$ {{ saldo.total|floatformat:2 }}</td>
-                                <td>{{ saldo.quantidade }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Saldos por Corretor</h5>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Corretor</th>
-                                <th>Total</th>
-                                <th>Quantidade</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for saldo in saldos_por_corretor %}
-                            <tr>
-                                <td>{{ saldo.corretor }}</td>
-                                <td>R$ {{ saldo.total|floatformat:2 }}</td>
-                                <td>{{ saldo.quantidade }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+    <div class="table-responsive">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th style="width: 20px"></th>
+                    <th>Rótulos de Linha</th>
+                    <th class="text-end">Soma de VALOR SOLICITADO</th>
+                    <th class="text-end">Contagem de PROPOSTA</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for status, dados in status_principais.items %}
+                    <tr class="table-secondary categoria-header" data-bs-toggle="collapse" 
+                        data-bs-target="#status{{ forloop.counter }}">
+                        <td class="text-center">
+                            <i class="fas fa-chevron-right categoria-icon"></i>
+                        </td>
+                        <td>{{ status }}</td>
+                        <td class="text-end">{{ dados.total|floatformat:2 }}</td>
+                        <td class="text-end">{{ dados.contagem }}</td>
+                    </tr>
+                    
+                    <tbody id="status{{ forloop.counter }}" class="collapse">
+                        {% for banco, banco_dados in dados.bancos.items %}
+                            {% if banco_dados.valor > 0 or banco_dados.contagem > 0 %}
+                                <tr>
+                                    <td></td>
+                                    <td class="ps-4">{{ banco }}</td>
+                                    <td class="text-end">{{ banco_dados.valor|floatformat:2 }}</td>
+                                    <td class="text-end">{{ banco_dados.contagem }}</td>
+                                </tr>
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                {% endfor %}
+                
+                <tr class="table-dark fw-bold">
+                    <td></td>
+                    <td>Total Geral</td>
+                    <td class="text-end">{{ total_geral|floatformat:2 }}</td>
+                    <td class="text-end">{{ contagem_total }}</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 </div>
 
-<!-- JavaScript para o gráfico -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+.categoria-icon {
+    transition: transform 0.3s;
+}
+.categoria-header[aria-expanded="true"] .categoria-icon {
+    transform: rotate(90deg);
+}
+</style>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const ctx = document.getElementById('graficoSaldos').getContext('2d');
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: {{ grafico_saldos|safe }}.map(item => item.data_inclusao__date),
-            datasets: [{
-                label: 'Saldos por Dia',
-                data: {{ grafico_saldos|safe }}.map(item => item.total),
-                borderColor: 'rgb(75, 192, 192)',
-                tension: 0.1
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return 'R$ ' + value.toLocaleString('pt-BR');
-                        }
-                    }
-                }
-            }
-        }
+    const headers = document.querySelectorAll('.categoria-header');
+    headers.forEach(header => {
+        header.addEventListener('click', function() {
+            const isExpanded = this.getAttribute('aria-expanded') === 'true';
+            this.setAttribute('aria-expanded', !isExpanded);
+        });
     });
 });
 </script>

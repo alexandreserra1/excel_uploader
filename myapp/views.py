@@ -24,16 +24,23 @@ from django.db.models import Count, Sum
 from rest_framework.decorators import api_view
 from .dashboards.views import get_painel_recusas_data, get_painel_saldos_data
 from .exports import export_to_excel, export_matriz_diaria
+from django.contrib import messages
+from .utils import process_file
 
 # View para upload da base completa
 def upload_base_completa(request):
     if request.method == 'POST':
         form = UploadFileForm(request.POST, request.FILES)
         if form.is_valid():
-            handle_uploaded_file(request.FILES['file'], atualizar=False)
-            return redirect('contrato-list')
+            success, message = process_file(request.FILES['file'], atualizar=False)
+            if success:
+                messages.success(request, message)
+            else:
+                messages.error(request, message)
+            return redirect('upload-base-completa')
     else:
         form = UploadFileForm()
+    
     return render(request, 'upload.html', {'form': form})
 
 # View para upload de atualização por ADE
@@ -41,10 +48,15 @@ def upload_atualizacao_ade(request):
     if request.method == 'POST':
         form = UploadFileForm(request.POST, request.FILES)
         if form.is_valid():
-            handle_uploaded_file(request.FILES['file'], atualizar=True)
-            return redirect('contrato-list')
+            success, message = process_file(request.FILES['file'], atualizar=True)
+            if success:
+                messages.success(request, message)
+            else:
+                messages.error(request, message)
+            return redirect('upload-atualizacao-ade')
     else:
         form = UploadFileForm()
+    
     return render(request, 'upload.html', {'form': form})
 
 def handle_uploaded_file(f, atualizar=False):
@@ -330,16 +342,122 @@ def export_matriz_diaria(request):
     return export_matriz_diaria()
 
 def painel_recusas(request):
-    """
-    View para renderizar o painel de recusas
-    """
-    data = get_painel_recusas_data()
-    return render(request, 'dashboards/recusas.html', data)
+    """View para o painel de recusas"""
+    # Status fixos que queremos mostrar
+    status_tipos = [
+        'RETIDO',
+        'RETENÇÃO 011',
+        'Portabilidade em andamento',
+        'POLITICA INTERNA',
+        'liquidado',
+        'Contrato Não encontrado'
+    ]
+    
+    # Buscar todos os bancos
+    bancos = Contrato.objects.values_list('banco', flat=True).distinct().order_by('banco')
+    
+    # Criar estrutura de dados para a tabela pivot
+    pivot_data = {}
+    for banco in bancos:
+        pivot_data[banco] = {}
+        for status in status_tipos:
+            # Buscar valor total para cada combinação banco/status
+            valor = Contrato.objects.filter(
+                banco=banco,
+                status_do_contrato__iexact=status  # Case-insensitive match
+            ).aggregate(
+                total=Sum('valor_operacao_operacional')
+            )['total'] or 0.0
+            pivot_data[banco][status] = valor
+    
+    # Calcular totais
+    totais_por_banco = {}
+    for banco in bancos:
+        totais_por_banco[banco] = sum(pivot_data[banco].values())
+    
+    totais_por_status = {}
+    for status in status_tipos:
+        totais_por_status[status] = sum(
+            pivot_data[banco][status] for banco in bancos
+        )
+    
+    # Total geral
+    total_geral = sum(totais_por_banco.values())
+    
+    # Debug: imprimir valores para verificar
+    print("Bancos encontrados:", bancos)
+    print("Status encontrados:", Contrato.objects.values_list('status_do_contrato', flat=True).distinct())
+    print("Exemplo de dados:", pivot_data)
+    
+    dados = {
+        'bancos': bancos,
+        'status_tipos': status_tipos,
+        'pivot_data': pivot_data,
+        'totais_por_banco': totais_por_banco,
+        'totais_por_status': totais_por_status,
+        'total_geral': total_geral
+    }
+    
+    return render(request, 'dashboards/recusas.html', dados)
 
 def painel_saldos(request):
-    """
-    View para renderizar o painel de saldos
-    """
-    data = get_painel_saldos_data()
-    return render(request, 'dashboards/saldos.html', data)
-
+    # Inicializar dicionário de status principais
+    status_principais = {
+        'AGUARDA REFIN': {
+            'bancos': {
+                'BANCO BANRISUL': {'valor': 0, 'contagem': 0},
+                'BANCO CREFISA': {'valor': 0, 'contagem': 0},
+                'BANCO SAFRA': {'valor': 0, 'contagem': 0},
+                'BANCO SANTANDER': {'valor': 0, 'contagem': 0},
+                'BANCO SEGURO SA': {'valor': 0, 'contagem': 0},
+                'NU FINANCEIRA': {'valor': 0, 'contagem': 0}
+            },
+            'total': 0,
+            'contagem': 0
+        },
+        'AJUSTAR PORTFOS RET': {
+            'bancos': {
+                'BANCO BANRISUL': {'valor': 0, 'contagem': 0},
+                'BANCO SAFRA': {'valor': 0, 'contagem': 0},
+                'BANCO SANTANDER': {'valor': 0, 'contagem': 0},
+                'BANCO SEGURO SA': {'valor': 0, 'contagem': 0}
+            },
+            'total': 0,
+            'contagem': 0
+        },
+        'EM AVERBACAO': {
+            'bancos': {
+                'BANCO SANTANDER': {'valor': 0, 'contagem': 0},
+                'BANCO SEGURO SA': {'valor': 0, 'contagem': 0}
+            },
+            'total': 0,
+            'contagem': 0
+        }
+    }
+    
+    # Buscar contratos
+    contratos = Contrato.objects.all()
+    
+    for contrato in contratos:
+        valor = float(contrato.valor_operacao_operacional or 0)
+        banco = contrato.banco or 'Não informado'
+        status = contrato.status_do_contrato.upper() if contrato.status_do_contrato else ''
+        
+        # Classificar nos status principais
+        for status_principal, dados in status_principais.items():
+            if status_principal in status and banco in dados['bancos']:
+                dados['bancos'][banco]['valor'] += valor
+                dados['bancos'][banco]['contagem'] += 1
+                dados['total'] += valor
+                dados['contagem'] += 1
+                break
+    
+    # Calcular total geral
+    total_geral = sum(dados['total'] for dados in status_principais.values())
+    contagem_total = sum(dados['contagem'] for dados in status_principais.values())
+    
+    return render(request, 'dashboards/saldos.html', {
+        'status_principais': status_principais,
+        'total_geral': total_geral,
+        'contagem_total': contagem_total
+    })

@@ -1,6 +1,9 @@
 # myapp/utils.py
 
+import pandas as pd
 import unicodedata
+from datetime import datetime
+from .models import Contrato
 
 def normalize_column_name(name):
     """
@@ -9,11 +12,71 @@ def normalize_column_name(name):
     - Converte para minúsculas.
     - Remove acentos e caracteres especiais.
     """
-    # Remove espaços extras e converte para minúsculas
     name = ' '.join(name.strip().split()).lower()
-    # Remove acentos e caracteres especiais
     name = unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore').decode('ASCII')
     return name
+
+def process_file(file, update_mode=False):
+    """
+    Processa o arquivo enviado (CSV ou Excel)
+    update_mode: Se True, atualiza registros existentes. Se False, cria novos registros
+    """
+    # Determinar extensão do arquivo
+    file_name = file.name.lower()
+    
+    try:
+        # Ler arquivo baseado na extensão
+        if file_name.endswith('.csv'):
+            df = pd.read_csv(file, sep=';', encoding='latin1')
+        elif file_name.endswith('.xlsx'):
+            df = pd.read_excel(file)
+        else:
+            raise ValueError("Formato de arquivo não suportado. Use CSV ou XLSX.")
+
+        # Normalizar nomes das colunas
+        df.columns = [normalize_column_name(col) for col in df.columns]
+        
+        # Aplicar mapeamento de colunas
+        df = map_columns(df)
+        
+        # Converter datas
+        date_columns = ['data_nascimento', 'data_da_formalizacao', 'previsao_chegada_saldo']
+        for col in date_columns:
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col], errors='coerce')
+
+        # Processar registros
+        registros_processados = 0
+        
+        for _, row in df.iterrows():
+            dados = {col: row[col] for col in df.columns if col in COLUMN_MAPPING.values()}
+            
+            if update_mode:
+                # Modo atualização - procura pelo ADE
+                if 'ade' in dados:
+                    contrato = Contrato.objects.filter(ade=dados['ade']).first()
+                    if contrato:
+                        for key, value in dados.items():
+                            setattr(contrato, key, value)
+                        contrato.save()
+                        registros_processados += 1
+            else:
+                # Modo criação - novo registro
+                Contrato.objects.create(**dados)
+                registros_processados += 1
+
+        return {
+            'success': True,
+            'message': f'{registros_processados} registros processados com sucesso',
+            'registros_processados': registros_processados
+        }
+
+    except Exception as e:
+        return {
+            'success': False,
+            'message': f'Erro ao processar arquivo: {str(e)}',
+            'registros_processados': 0
+        }
 
 # Dicionário de mapeamento das colunas do arquivo para os campos do modelo
 COLUMN_MAPPING = {
@@ -25,7 +88,6 @@ COLUMN_MAPPING = {
     'cliente': 'cliente',
     'cpf do cliente': 'cpf_do_cliente',
     'rg do cliente': 'rg_do_cliente',
-    'nome da mae': 'nome_da_mae',
     'nome da mae': 'nome_da_mae',
     'data nascimento': 'data_nascimento',
     'cep': 'cep',
@@ -41,35 +103,31 @@ COLUMN_MAPPING = {
     'recebe beneficio cartao': 'recebe_beneficio_cartao',
     'contrato portado': 'contrato_portado',
     'ade': 'ade',
-    'ade vinculada': 'ade_vinculada',
     'tipo pagamento': 'tipo_pagamento',
     'banco': 'banco',
     'agencia': 'agencia',
     'dv agencia': 'dv_agencia',
-    'no conta': 'numero_conta',
-    'nº conta': 'numero_conta',  # Mapeamento adicional para 'Nº Conta'
+    'conta': 'conta',
     'dv conta': 'dv_conta',
     'tipo de conta': 'tipo_de_conta',
     'banco emprestimo': 'banco_emprestimo',
-    'orgao (convenio)': 'orgao_convenio',
+    'orgao': 'orgao',
     'operacao': 'operacao',
     'status do contrato': 'status_do_contrato',
     'formalizacao digital': 'formalizacao_digital',
-    'formalização digital': 'formalizacao_digital',  # Com acento
     'pendente de formalizacao': 'pendente_de_formalizacao',
-    'pendente de formalização': 'pendente_de_formalizacao',  # Com acento
     'link formalizacao': 'link_formalizacao',
-    'data da digitacao do contrato no banco': 'data_da_digitacao_do_contrato_no_banco',
-    'data da digitacao do contrato no sistema': 'data_da_digitacao_do_contrato_no_sistema',
-    'data de pagamento': 'data_de_pagamento',
-    'data pagamento do saldo': 'data_pagamento_do_saldo',
-    'data de despacho do beneficio (ddb)': 'data_de_despacho_do_beneficio',
+    'data da digitacao do contrato no banco': 'data_digitacao_banco',
+    'data da digitacao do contrato no sistema': 'data_digitacao_sistema',
+    'data de pagamento': 'data_pagamento',
+    'data pagamento do saldo': 'data_pagamento_saldo',
+    'data de despacho do beneficio': 'data_despacho_beneficio',
     'tabela': 'tabela',
     'prazo': 'prazo',
     'producao bruta': 'producao_bruta',
-    'producao bruta com ajuste de %': 'producao_bruta_com_ajuste',
+    'producao bruta com ajuste': 'producao_bruta_com_ajuste',
     'producao liquida': 'producao_liquida',
-    'producao liquida com ajuste de %': 'producao_liquida_com_ajuste',
+    'producao liquida com ajuste': 'producao_liquida_com_ajuste',
     'cliente novo': 'cliente_novo',
     'total valor parcelas': 'total_valor_parcelas',
     'clonado': 'clonado',
@@ -78,26 +136,22 @@ COLUMN_MAPPING = {
     'valor parcela operacional': 'valor_parcela_operacional',
     'origem': 'origem',
     'valor base': 'valor_base',
-    'valor base com ajuste de %': 'valor_base_com_ajuste',
+    'valor base com ajuste': 'valor_base_com_ajuste',
     'banco origem nome 1': 'banco_origem_nome_1',
     'banco origem prazo 1': 'banco_origem_prazo_1',
     'banco origem parcelas pagas 1': 'banco_origem_parcelas_pagas_1',
     'banco origem valor parcela 1': 'banco_origem_valor_parcela_1',
     'banco origem valor quitacao 1': 'banco_origem_valor_quitacao_1',
-    'banco origem valor quitação 1': 'banco_origem_valor_quitacao_1',  # Com acento
     'campo extra': 'campo_extra',
     'observacao': 'observacao',
-    'observação': 'observacao',  # Com acento
+    'observação': 'observacao',
     'caixa do contrato': 'caixa_do_contrato',
     'sexo': 'sexo',
     'data da formalizacao': 'data_da_formalizacao',
-    'data da formalização': 'data_da_formalizacao',  # Com acento
     'previsao chegada saldo': 'previsao_chegada_saldo',
-    'previsão chegada saldo': 'previsao_chegada_saldo',  # Com acento
     'tipo chave pix': 'tipo_chave_pix',
     'chave pix': 'chave_pix',
     'status de acordo com padrao status contrato': 'status_de_acordo_com_padrao_status_contrato',
-    'status de acordo com padrão status contrato': 'status_de_acordo_com_padrao_status_contrato',  # Com acento
     'data do status': 'data_do_status',
     # Tratamento para colunas com caracteres invisíveis
     '\u200e ': 'coluna_invisivel_1',

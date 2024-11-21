@@ -2,40 +2,80 @@
 
 {% extends 'base.html' %}
 
-{% block title %}Upload de Arquivos{% endblock %}
-
 {% block content %}
-<div class="row">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h3>Upload da Base Completa</h3>
-            </div>
-            <div class="card-body">
-                <form method="post" enctype="multipart/form-data" action="{% url 'upload-base-completa' %}">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        {{ form.file }}
+<div class="container">
+    <div class="row">
+        <div class="col-12 mb-4">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
-                    <button type="submit" class="btn btn-primary">Enviar Base Completa</button>
-                </form>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Upload Base Completa</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" action="{% url 'upload-base-completa' %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Selecione o arquivo</label>
+                            {{ form.file }}
+                        </div>
+                        <button type="submit" class="btn btn-primary">Enviar Base Completa</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Upload Atualização ADE</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" action="{% url 'upload-atualizacao-ade' %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Selecione o arquivo</label>
+                            {{ form.file }}
+                        </div>
+                        <button type="submit" class="btn btn-primary">Enviar Atualização</button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
-    
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h3>Upload para Atualização por ADE</h3>
-            </div>
-            <div class="card-body">
-                <form method="post" enctype="multipart/form-data" action="{% url 'upload-atualizacao-ade' %}">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        {{ form.file }}
-                    </div>
-                    <button type="submit" class="btn btn-primary">Enviar Atualização</button>
-                </form>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Instruções</h3>
+                </div>
+                <div class="card-body">
+                    <h4>Base Completa</h4>
+                    <ul>
+                        <li>Arquivo CSV (separado por ;) ou Excel (.xlsx)</li>
+                        <li>Deve conter todas as colunas do modelo</li>
+                        <li>Substitui dados existentes</li>
+                    </ul>
+
+                    <h4>Atualização ADE</h4>
+                    <ul>
+                        <li>Arquivo CSV ou Excel com colunas: ADE, Caixa do Contrato, VALOR SOLICITADO</li>
+                        <li>Atualiza apenas registros existentes</li>
+                        <li>Busca pelo número do ADE</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>

@@ -15,4 +15,9 @@ urlpatterns = [
     # Painéis
     path('dashboard/recusas/', views.painel_recusas, name='painel-recusas'),
     path('dashboard/saldos/', views.painel_saldos, name='painel-saldos'),
+    
+    # Adicionar estas rotas para API
+    path('api/contratos/', views.ContratoListCreateView.as_view(), name='contrato-list'),
+    path('api/contratos/<int:pk>/', views.ContratoDetailView.as_view(), name='contrato-detail'),
+    path('api/contratos/ade/<str:ade>/', views.ContratoAdeDetailView.as_view(), name='contrato-ade'),
 ]

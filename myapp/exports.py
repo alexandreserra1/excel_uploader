@@ -13,8 +13,14 @@ def export_to_excel(queryset, filename=None):
     # Converter queryset para DataFrame
     df = pd.DataFrame.from_records(queryset.values())
     
+    # Converter campos datetime para timezone unaware
+    datetime_columns = ['data_inclusao']  # Adicione outros campos datetime se houver
+    for col in datetime_columns:
+        if col in df.columns:
+            df[col] = df[col].dt.tz_localize(None)
+    
     # Criar response com Excel
-    response = HttpResponse(content_type='application/vnd.ms-excel')
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     
     # Salvar DataFrame como Excel
